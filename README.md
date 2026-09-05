@@ -18,7 +18,7 @@ DLSS5 Video & Image Renderer
 
 ### 路线 A：普通用户（免编译，推荐）
 
-1. 打开本仓库 **Releases** 页面，下载最新版 **完整发行包**（如 `DLSS5NR视频渲染器_v1.2.zip`）；
+1. 打开本仓库 **Releases** 页面，下载最新版 **完整发行包**（如 `DLSS5NR_v1.2.zip`）；
 2. 解压到任意目录（路径含中文也没问题）；
 3. 双击 **（点击启动）Start_DLSS5NR.bat**；
 4. 浏览器自动打开操作界面（地址 http://127.0.0.1:8777）；
@@ -39,7 +39,7 @@ DLSS5 Video & Image Renderer
 
 | 资产 | 内容 | 适用 |
 |---|---|---|
-| 完整发行包 `DLSS5NR视频渲染器_v1.2.zip` | 引擎 + 界面 + NR 模型(fp16/fp8) + 深度运行库 + 便携 node/ffmpeg + 启动脚本 + 使用说明 | 所有用户：解压 → 双击启动 → 浏览器操作 |
+| 完整发行包 `DLSS5NR_v1.2.zip` | 引擎 + 界面 + NR 模型(fp16/fp8) + 深度运行库 + 便携 node/ffmpeg + 启动脚本 + 使用说明 | 所有用户：解压 → 双击启动 → 浏览器操作 |
 
 包内 `models/` 与 `core/depth/` 已按引擎探测路径排好：`models/` 放 NR 模型与配套转发器
 （`nvngx_dlssnr_fp16.dll` / `nvngx_dlssnr_fp8.dll` + `nvngx.dll_dlssnr_fp16.dll` /
