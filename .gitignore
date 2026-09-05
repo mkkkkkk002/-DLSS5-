@@ -1,0 +1,46 @@
+# ============================================================
+#  dlss5nr - source-only repository ignores
+#  Binaries, third-party runtime payloads and private notes are
+#  NOT redistributed here (see README for how to obtain them).
+# ============================================================
+
+# ---- build artifacts ----
+*.obj
+*.o
+*.exe
+*.pdb
+*.ilk
+*.exp
+*.log
+*.oldbin
+*.bak
+*.bak[0-9]
+core/dlss5nr_engine.exe
+server_guard.obj
+
+# ---- third-party model / forwarder binaries (not redistributed) ----
+models/
+
+# ---- ONNX Runtime + DirectML runtime payload (keep the MIT header) ----
+core/depth/*.dll
+core/depth/*.onnx
+!core/depth/*.h
+
+# ---- NVIDIA driver log noise ----
+NVIDIA Corporation/
+core/NVIDIA Corporation/
+
+# ---- runtime data / private notes / media ----
+outputs/
+.tmp_uploads/
+.frame_previews/
+.bench/
+.workbuddy/
+测试用视频/
+
+# ---- OS / editor junk ----
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+.idea/

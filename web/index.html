@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DLSS 5 Neural Rendering - 视频处理</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --border: #e3e6ea;
+    --text: #1c1f23;
+    --muted: #6b7280;
+    --accent: #2f6fed;
+    --accent-soft: #eaf1ff;
+    --ok: #17914f;
+    --warn: #b7791f;
+    --danger: #c0392b;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  header {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 14px 22px; display: flex; align-items: baseline; gap: 12px;
+  }
+  header h1 { margin: 0; font-size: 16px; font-weight: 600; }
+  header .sub { color: var(--muted); font-size: 12px; }
+
+  .wrap { max-width: 1560px; margin: 0 auto; padding: 20px; display: grid;
+          grid-template-columns: 380px 1fr 560px; gap: 18px; align-items: start; }
+  @media (max-width: 1480px) { .wrap { grid-template-columns: 380px 1fr; }
+                                .col-img { grid-column: 1 / -1; } }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+          padding: 16px; margin-bottom: 16px; }
+  .card.drop-active { outline: 2px dashed var(--accent); outline-offset: 4px; background: var(--accent-soft); }
+  .card h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; color: var(--muted);
+             text-transform: uppercase; letter-spacing: .04em; }
+
+  label.field { display: block; margin-bottom: 12px; }
+  label.field > span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  label.field > span .warn-tag {
+    display: inline-block; margin-left: 8px; padding: 1px 8px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0;
+    color: #A32D2D; background: rgba(226, 75, 74, 0.10);
+    border: 1px solid rgba(226, 75, 74, 0.30); border-radius: 10px;
+    vertical-align: middle; cursor: help; text-transform: none;
+  }
+  label.field > span .zh { display: block; font-size: 11px; opacity: .8; margin-top: 1px; }
+  .check-row label .zh { display: block; font-size: 11px; opacity: .8; }
+  input[type=text], input[type=number], select {
+    width: 100%; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px;
+    background: #fff; color: var(--text); font-size: 13px; font-family: inherit;
+  }
+  input[type=text]:focus, input[type=number]:focus, select:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .slider-row .name { flex: 0 0 140px; font-size: 12px; color: var(--muted); }
+  .slider-row .name .zh { display: block; font-size: 11px; opacity: .8; }
+  .slider-row input[type=range] { flex: 1 1 auto; min-width: 60px; accent-color: var(--accent); }
+  .slider-row input[type=number].num {
+    flex: 0 0 72px; width: 72px; padding: 5px 7px; border: 1px solid var(--border);
+    border-radius: 6px; background: #fff; color: var(--text);
+    font: 12px var(--mono); text-align: right;
+  }
+  .slider-row input[type=number].num:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .slider-row input[type=number].num:invalid { border-color: var(--danger); }
+
+  .check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; }
+  .check-row input { accent-color: var(--accent); width: 15px; height: 15px; }
+  .check-row .hint { color: var(--muted); font-size: 11px; }
+
+  .btn {
+    padding: 8px 16px; border: 1px solid var(--border); border-radius: 6px; background: #fff;
+    color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+  }
+  .btn:hover { border-color: #c9ced6; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #2560d8; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.danger { color: var(--danger); }
+  .btn-row { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+  .preset-box { border: 1px dashed #ccd2da; border-radius: 8px; padding: 10px; margin-bottom: 14px;
+                background: rgba(120,130,145,.05); }
+  .preset-row { display: flex; gap: 6px; align-items: center; }
+  .preset-row + .preset-row { margin-top: 6px; }
+  .preset-row input[type=text] { flex: 1 1 auto; min-width: 0; }
+  .preset-row .btn { flex: 0 0 auto; padding: 7px 12px; }
+  .preset-list-wrap { position: relative; flex: 1 1 auto; min-width: 0; }
+  .preset-list-btn {
+    width: 100%; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px;
+    background: #fff; color: var(--text); font: 13px inherit; text-align: left;
+    display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+  }
+  .preset-list-btn:hover { border-color: #c9ced6; }
+  .preset-list-btn:focus { outline: none; border-color: var(--accent);
+                            box-shadow: 0 0 0 3px var(--accent-soft); }
+  .preset-list-btn .caret { color: var(--muted); font-size: 10px; }
+  .preset-list-menu {
+    display: none; position: absolute; top: calc(100% + 2px); left: 0; right: 0;
+    background: #fff; border: 1px solid var(--border); border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.10); max-height: 240px; overflow-y: auto;
+    padding: 4px 0; margin: 0; list-style: none; z-index: 200;
+  }
+  .preset-list-menu.open { display: block; }
+  .preset-list-menu .item { padding: 6px 10px; font-size: 13px; cursor: pointer; }
+  .preset-list-menu .item:hover, .preset-list-menu .item.active { background: var(--accent-soft); color: var(--accent); }
+  .preset-list-menu .item.empty { color: var(--muted); cursor: default; }
+  .preset-list-menu .item.empty:hover { background: transparent; color: var(--muted); }
+
+  .bar { height: 7px; background: #eceff3; border-radius: 4px; overflow: hidden; margin: 10px 0 6px; }
+  .bar > i { display: block; height: 100%; background: var(--accent); width: 0;
+             transition: width .25s ease; }
+  .status { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .status.done { color: var(--ok); }
+  .status.err { color: var(--danger); }
+
+  pre.log {
+    background: #12151a; color: #d5dae2; border-radius: 8px; padding: 12px;
+    height: 320px; overflow: auto; font-family: var(--mono); font-size: 11.5px;
+    line-height: 1.55; margin: 0; white-space: pre-wrap; word-break: break-all;
+  }
+  .note {
+    background: #fff8e6; border: 1px solid #f0dca8; border-radius: 6px;
+    padding: 9px 11px; font-size: 12px; color: #7a5c14; margin-bottom: 12px;
+  }
+  .note.info { background: var(--accent-soft); border-color: #c3d7ff; color: #1a4aa8; }
+  .tag { display: inline-block; background: #eef0f3; color: var(--muted); border-radius: 4px;
+         padding: 1px 6px; font-size: 10.5px; margin-left: 6px; font-family: var(--mono); }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 6px; font-family: var(--mono); }
+  .img-drop {
+    margin-top: 8px; padding: 28px 12px; text-align: center;
+    border: 1px dashed var(--border); border-radius: 8px; background: #fafbfd;
+    color: var(--muted); font-size: 12px; cursor: pointer; user-select: none;
+  }
+  .img-drop:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  /* Full-screen image-compare modal: click 「放大对比」 to scrutinize render differences at near
+     full screen using the same mouse-drag split as the inline compare. */
+  .img-modal {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0, 0, 0, .78);
+    display: none; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .img-modal.show { display: flex; }
+  .img-modal-inner { position: relative; width: 95vw; height: 88vh; max-width: 1800px; }
+  .img-modal .compare {
+    width: 100%; height: 100%;
+    min-width: 0; min-height: 0;
+    max-width: none; max-height: none;
+    cursor: ew-resize;
+  }
+  .img-modal .compare .img-stage {
+    max-width: 100%; max-height: 100%;
+  }
+  .img-modal .compare .img-stage > img.orig { max-height: 88vh; }
+  .img-modal-close {
+    position: absolute; top: -36px; right: 0;
+    color: #fff; background: rgba(0, 0, 0, .4); border: none;
+    font-size: 13px; font-family: inherit;
+    padding: 6px 14px; border-radius: 4px; cursor: pointer;
+  }
+  .img-modal-close:hover { background: rgba(0, 0, 0, .7); }
+  .img-modal-hint {
+    position: absolute; bottom: -30px; left: 0; right: 0; text-align: center;
+    color: rgba(255, 255, 255, .65); font-size: 11px; font-family: var(--mono);
+  }
+
+  .compare-labels {
+  position: absolute; top: 8px;
+  display: flex; justify-content: space-between;
+  width: 100%;
+  pointer-events: none;
+  padding: 0 10px;
+  font-size: 11px; font-family: var(--mono);
+}
+.compare-labels span {
+  background: rgba(0,0,0,.55); color: #fff; padding: 2px 8px; border-radius: 4px;
+}
+.compare {
+  position: relative;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: ew-resize;
+  user-select: none;
+  min-height: 240px;
+  display: flex; align-items: center; justify-content: center;
+}
+/* .img-stage is the single shared canvas: its size is EXACTLY the scaled-down source image
+   (no letterbox). The rendered layer is drawn into that same rectangle and clipped relative to
+   it, so the divider coordinate maps 1:1 to image pixels -- no offset even when the compare box
+   is wider/taller than the picture. */
+.compare .img-stage {
+  position: relative;
+  max-width: 100%; max-height: 100%;
+  line-height: 0;
+}
+.compare .img-stage > img.orig {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+}
+.compare .img-stage .render-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  clip-path: inset(0 100% 0 0);   /* hidden until split updates */
+}
+.compare .img-stage .render-layer img {
+  display: block;
+  width: 100%; height: 100%;
+  object-fit: fill;
+  background: #000;
+}
+.compare .img-stage .divider {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: rgba(255,255,255,.85);
+  box-shadow: 0 0 6px rgba(0,0,0,.4);
+  pointer-events: none;
+  left: 50%;
+  transform: translateX(-1px);
+}
+.compare.empty .orig { opacity: .35; }
+.compare.empty .divider, .compare.empty .render-layer { display: none; }
+.compare .render-layer img[src=""], .compare .render-layer img:not([src]) { visibility: hidden; }
+
+  /* Floating log panel (bottom-right) */
+  #logPanel {
+    position: fixed; right: 16px; bottom: 16px; z-index: 60;
+    width: 460px; max-width: calc(100vw - 32px);
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.18);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    transition: height .15s ease;
+  }
+  #logPanel.folded { height: 38px; }
+  #logPanel.expanded { height: 320px; max-height: calc(100vh - 80px); }
+  #logPanel .log-head {
+    display: flex; align-items: center; gap: 8px; flex: 0 0 auto;
+    padding: 8px 10px; cursor: pointer; user-select: none;
+    border-bottom: 1px solid var(--border); background: var(--card);
+  }
+  #logPanel.folded .log-head { border-bottom: 0; }
+  #logPanel .log-title { font-weight: 600; font-size: 13px; }
+  #logPanel .log-count {
+    font: 11px var(--mono); color: var(--muted);
+    padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: #1a4aa8;
+  }
+  #logPanel .log-actions { margin-left: auto; display: flex; gap: 4px; }
+  #logPanel .log-btn {
+    background: transparent; border: 1px solid var(--border); border-radius: 5px;
+    padding: 2px 8px; font: 12px var(--mono); color: var(--text); cursor: pointer;
+  }
+  #logPanel .log-btn:hover { background: var(--accent-soft); }
+  #logPanel .log-body {
+    margin: 0; flex: 1 1 auto; overflow: auto;
+    font: 12px/1.5 var(--mono); white-space: pre-wrap; word-break: break-all;
+    padding: 8px 10px; background: #1a1d22; color: #d6dde7;
+  }
+  #logPanel.folded .log-body { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>DLSS 5 Neural Rendering</h1>
+  <span class="sub">by kkski</span>
+</header>
+
+<div class="wrap">
+
+  <!-- ------------------------------------------------------------ left -->
+  <div>
+    <div class="card" id="fileCard">
+      <h2>视频渲染</h2>
+      <label class="field">
+        <span>视频选择</span>
+        <div class="btn-row" style="margin-bottom:8px;">
+          <button class="btn" id="filePickerBtn">选择路径或将视频拖入</button>
+        </div>
+      </label>
+      <label class="field">
+        <span>输入路径（也可手动粘贴）</span>
+        <input type="text" id="input" placeholder="D:\video\input.mp4">
+      </label>
+      <label class="field">
+        <span>输出路径（可选，留空则输出至 <项目根>/outputs/）</span>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="output" placeholder="D:\video\nr_input.mp4" style="flex:1;">
+          <button class="btn" id="outputPickBtn" style="flex:0 0 auto;">选择…</button>
+        </div>
+      </label>
+    </div>
+
+    <div class="card">
+      <h2>参数设置</h2>
+
+      <div class="preset-box">
+        <div class="preset-row">
+          <input type="text" id="presetName" placeholder="预设名称">
+          <button class="btn" id="presetSaveBtn" title="把当前参数保存为预设，同名则覆盖">保存</button>
+        </div>
+        <div class="preset-row">
+          <div class="preset-list-wrap" id="presetListWrap">
+            <button type="button" id="presetListBtn" class="preset-list-btn" aria-haspopup="listbox">
+              <span id="presetListLabel">（暂无预设）</span>
+              <span class="caret">▾</span>
+            </button>
+            <ul class="preset-list-menu" id="presetListMenu" role="listbox"></ul>
+          </div>
+          <button class="btn" id="presetLoadBtn" disabled>加载</button>
+          <button class="btn danger" id="presetDelBtn" disabled>删除</button>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>模型文件</span>
+        <select id="model">
+          <option value="auto">Auto</option>
+          <option value="fp16">FP16</option>
+          <option value="fp8">FP8</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>NR Preset</span>
+        <select id="preset">
+          <option value="0">0</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>NR Style</span>
+        <select id="style">
+          <option value="0">0 - Default</option>
+          <option value="1">1 - Natural</option>
+          <option value="2">2 - Cinematic</option>
+        </select>
+      </label>
+
+      <div class="slider-row">
+        <span class="name">NR Intensity</span>
+        <input type="range" id="intensity" min="0" max="2" step="0.01" value="1">
+        <input type="number" class="num" id="intensity_n" min="0" max="2" step="0.01" value="1">
+      </div>
+      <div class="slider-row">
+        <span class="name">Local Tone Strength</span>
+        <input type="range" id="localTone" min="0" max="2" step="0.01" value="1">
+        <input type="number" class="num" id="localTone_n" min="0" max="2" step="0.01" value="1">
+      </div>
+      <div class="slider-row">
+        <span class="name">Local Structure Strength</span>
+        <input type="range" id="localStructure" min="0" max="2" step="0.01" value="1">
+        <input type="number" class="num" id="localStructure_n" min="0" max="2" step="0.01" value="1">
+      </div>
+      <div class="slider-row">
+        <span class="name">Skin Structure Strength</span>
+        <input type="range" id="skinStructure" min="-1" max="2" step="0.01" value="0.5">
+        <input type="number" class="num" id="skinStructure_n" min="-1" max="2" step="0.01" value="0.5">
+      </div>
+
+      <div class="check-row">
+        <input type="checkbox" id="autoMask" checked>
+        <label for="autoMask">Automatic Mask</label>
+      </div>
+      <div class="check-row">
+        <input type="checkbox" id="uiCorrection">
+        <label for="uiCorrection">NR UI Correction</label>
+      </div>
+
+      <div class="slider-row">
+        <span class="name">Residual Multiplier</span>
+        <input type="range" id="residualMult" min="1.0" max="2.0" step="0.01" value="1.0">
+        <input type="number" class="num" id="residualMult_n" min="1.0" max="2.0" step="0.01" value="1.0">
+      </div>
+
+      <div class="field">
+        <span>Optical Flow Motion</span>
+        <div class="check-row" style="margin-top:2px;">
+          <input type="checkbox" id="flowEnable" checked>
+          <label for="flowEnable">Enable hardware NV-OF motion vectors</label>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Depth Inference Interval<span class="warn-tag" title="性能损耗极大：每 N 帧跑一次 DepthAnything（336×182 DML 推理 + CPU 全分辨率双线性放大），720P 实测单次≈76ms、interval=2 时平摊占帧时 38%+；间隔越小越频繁，建议 ≥4 或直接置 0 关闭">⚠ 性能损耗极大</span></span>
+        <input type="number" id="depthInterval" value="0" min="0">
+      </label>
+
+      <label class="field">
+        <span>渲染次数</span>
+        <input type="number" id="renderPasses" value="1" min="1" step="1" title="整段视频重复渲染遍数,必须 ≥ 1,上限不限;耗时与遍数成正比">
+      </label>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------------ center -->
+  <div>
+    <div class="card">
+      <h2>输出设置</h2>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <label class="field">
+          <span>编码器</span>
+          <select id="encoder">
+            <option value="h264_nvenc">h264_nvenc (推荐)</option>
+            <option value="hevc_nvenc">hevc_nvenc</option>
+            <option value="libx264">libx264</option>
+            <option value="libx265">libx265</option>
+          </select>
+        </label>
+        <div class="field">
+          <span>时间范围</span>
+          <div style="display:flex; gap:8px;">
+            <input type="number" id="startTime" value="0" min="0" step="0.1" style="flex:1;" title="起始时间（秒），0 = 从头">
+            <input type="number" id="endTime" value="0" min="0" step="0.1" style="flex:1;" title="结束时间（秒），0 = 到结尾">
+          </div>
+          <div class="meta" id="rangeInfo" style="margin-top:2px;">0 到结尾（整段）</div>
+        </div>
+      </div>
+      <video id="cmpVideo" controls playsinline muted preload="metadata"
+             style="width:100%; max-height:38vh; background:#000; border-radius:8px; margin-top:10px;"
+             title="拖动进度条选帧,或用下方按钮把当前时间设为起点/终点"></video>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+        <button class="btn primary" id="setCmpFrameBtn">渲染当前帧进行预览</button>
+        <button class="btn" id="pickStartBtn">选择当前时间为起点</button>
+        <button class="btn" id="pickEndBtn">选择当前时间为终点</button>
+        <span class="meta" id="cmpStatus">先在播放器里选帧:拖动进度条到想要的画面后点击按钮</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="startBtn">开始处理</button>
+        <button class="btn danger" id="cancelBtn" disabled>停止</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>对比预览</h2>
+      <div class="compare empty" id="compareBox">
+        <div class="img-stage" id="cmpStage">
+          <img class="orig" id="cmpOrigImg" alt="原图" src="">
+          <div class="render-layer" id="cmpRenderLayer"><img id="cmpRenderImg" alt="渲染后" src=""></div>
+          <div class="divider" id="cmpDivider"></div>
+        </div>
+        <div class="compare-labels">
+          <span>渲染前</span>
+          <span>渲染后</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>进度</h2>
+      <div class="bar"><i id="bar"></i></div>
+      <div class="status" id="statusText">空闲</div>
+      <div class="meta" id="progStats" style="margin-top:2px; display:none;"></div>
+    </div>
+
+    <div class="card" id="resultCard" style="display:none;">
+      <h2>结果</h2>
+      <div class="meta" id="resultInfo"></div>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------------ image -->
+  <div class="col-img">
+    <div class="card" id="imgCard">
+      <h2>图片渲染</h2>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <button class="btn" id="imgPickBtn">选择图片…</button>
+        <button class="btn primary" id="imgRenderBtn" disabled>渲染此图</button>
+        <button class="btn" id="imgZoomBtn" disabled title="打开全屏对比,鼠标拖动分隔条仔细看渲染差异">放大对比</button>
+        <button class="btn" id="imgSaveBtn" disabled>保存渲染结果…</button>
+      </div>
+      <div class="meta" id="imgStatus" style="margin-top:6px;"></div>
+      <div class="img-drop" id="imgDropZone"
+           title="把图片文件拖到页面任意处,或用截图工具复制后在页面内按 Ctrl+V">
+        拖入图片 · 点击选择 · Ctrl+V 粘贴截图
+      </div>
+      <img id="imgPreview" alt="原图预览"
+           style="display:none; width:100%; max-height:42vh; background:#000; border-radius:8px; margin-top:10px; object-fit:contain;">
+      <div class="compare empty" id="imgBox" style="margin-top:10px;">
+        <div class="img-stage" id="imgStage">
+          <img class="orig" id="imgOrigImg" alt="原图" src="">
+          <div class="render-layer" id="imgRenderLayer"><img id="imgRenderImg" alt="渲染后" src=""></div>
+          <div class="divider" id="imgDivider"></div>
+        </div>
+        <div class="compare-labels">
+          <span>原图</span>
+          <span>渲染后</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Full-screen image-compare modal (same orig/render/split UX as the inline box, just bigger). -->
+<div class="img-modal" id="imgModal" aria-hidden="true">
+  <div class="img-modal-inner">
+    <button class="img-modal-close" id="imgModalClose" title="关闭 (Esc)">关闭 ✕</button>
+    <div class="compare" id="imgModalBox">
+      <div class="img-stage" id="imgModalStage">
+        <img class="orig" id="imgModalOrig" alt="原图" src="">
+        <div class="render-layer" id="imgModalRenderLayer"><img id="imgModalRender" alt="渲染后" src=""></div>
+        <div class="divider" id="imgModalDivider"></div>
+      </div>
+      <div class="compare-labels">
+        <span>原图</span>
+        <span>渲染后</span>
+      </div>
+    </div>
+    <div class="img-modal-hint">拖动鼠标移动分隔条 · Esc 关闭</div>
+  </div>
+</div>
+
+<!-- Floating log panel (bottom-right). Default folded; click the header to expand. -->
+<div id="logPanel" class="log-panel folded" aria-live="polite">
+  <div class="log-head" id="logHead">
+    <span class="log-title">日志</span>
+    <span class="log-count" id="logCount">0</span>
+    <div class="log-actions">
+      <button class="log-btn" id="logCopyBtn" title="复制全部日志">复制</button>
+      <button class="log-btn" id="logClearBtn" title="清空当前显示(下次启动任务前不清空)">清空</button>
+      <button class="log-btn" id="logToggleBtn" title="展开/折叠">▾</button>
+    </div>
+  </div>
+  <pre class="log-body" id="logBody"></pre>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+// Project root + default outputs dir, populated by GET /api/info on boot. Cached so autoFillOutput
+// and the output picker can build <ROOT>/outputs/nr_<stem>.<ext> without an extra round-trip.
+let APP_ROOT = '';
+let APP_OUTPUTS = '';
+fetch('/api/info').then((r) => r.json()).then((j) => {
+    if (j && j.ok) { APP_ROOT = j.root; APP_OUTPUTS = j.outputs; }
+}).catch(() => { /* root stays ''; autoFillOutput then leaves the output field untouched */ });
+
+// Slider + paired number input with range clamping. Slider moves update the input; typing in
+// the input clamps to [min, max] and snaps to the step, and pushes the value back to the slider.
+['intensity','localTone','localStructure','skinStructure','residualMult'].forEach((k) => {
+  const slider = $(k);
+  const num = $(k + '_n');
+  const min = parseFloat(slider.min);
+  const max = parseFloat(slider.max);
+  const step = parseFloat(slider.step) || 0.01;
+
+  const clamp = (v) => {
+    if (isNaN(v)) return min;
+    v = Math.max(min, Math.min(max, v));
+    return Math.round(v / step) * step;
+  };
+  const fmt = (v) => v.toFixed(2);
+
+  const fromSlider = () => {
+    const v = clamp(parseFloat(slider.value));
+    slider.value = fmt(v);
+    num.value = fmt(v);
+  };
+  const fromNum = () => {
+    const raw = parseFloat(num.value);
+    if (isNaN(raw)) {
+      num.value = fmt(parseFloat(slider.value));
+      num.setCustomValidity('');
+      return;
+    }
+    const v = clamp(raw);
+    slider.value = fmt(v);
+    num.value = fmt(v);
+    // flag out-of-range so the browser can style it red; we already clamped the value
+    num.setCustomValidity(Math.abs(raw - v) > 1e-9 ? 'out of range' : '');
+  };
+
+  slider.addEventListener('input', fromSlider);
+  num.addEventListener('input', fromNum);
+  num.addEventListener('blur', fromNum);
+  fromSlider();
+});
+
+// True when the current input path is a disposable drag-and-drop copy. Kept as a flag in case
+// future features (e.g. "open original location") need to know; not currently consumed by any
+// auto-fill code now that all defaults go to <ROOT>/outputs/.
+let inputIsTmp = false;
+// Original display filename of the current input (e.g. "clip.mp4"). Used to build the default
+// output name nr_<stem>.<ext> so drag-and-drop (whose temp path is a random id) still produces
+// an output named after the user's real file.
+let lastOrigName = '';
+
+function applyInputPath(path, name, isTmp) {
+  inputIsTmp = !!isTmp;
+  lastOrigName = name || '';
+  $('input').value = path;
+  resetRangeFromInput();
+  loadCmpPlayer(path);
+}
+
+// Fill the output field with <ROOT>/outputs/nr_<original-name>.<ext> when it is still empty.
+// Pure client-side; never touches the server and never prints status text next to the picker.
+function autoFillOutput() {
+  const inp = $('input').value.trim();
+  if (!inp) return;
+  if (!$('output').value.trim()) {
+    const nm = lastOrigName || inp;
+    const extM = nm.match(/\.[^./\\]+$/);
+    const stem = nm.replace(/^.*[\\/]/, '').replace(/\.[^./\\]+$/, '') || 'video';
+    const ext = extM ? extM[0] : (inp.match(/\.[^./\\]+$/) || ['.mp4'])[0];
+    if (APP_OUTPUTS) {
+      const sep = APP_OUTPUTS.includes('\\') ? '\\' : '/';
+      const tail = /[\\/]$/.test(APP_OUTPUTS) ? '' : sep;
+      $('output').value = APP_OUTPUTS + tail + 'nr_' + stem + ext;
+    }
+  }
+}
+
+// Points the compare player at the chosen video so the user can scrub to the frame they want.
+function loadCmpPlayer(path) {
+  const v = $('cmpVideo');
+  const status = $('cmpStatus');
+  const src = '/api/video?path=' + encodeURIComponent(path);
+  if (v.getAttribute('data-src') === src) return;
+  v.setAttribute('data-src', src);
+  v.src = src;
+  const om = () => {
+    v.removeEventListener('loadedmetadata', om);
+    v.removeEventListener('error', oe);
+    status.textContent = `播放器就绪:拖动进度条选帧(总长 ${v.duration ? v.duration.toFixed(1) : '?'}s),选好后点按钮`;
+  };
+  const oe = () => {
+    v.removeEventListener('loadedmetadata', om);
+    v.removeEventListener('error', oe);
+    status.textContent = '播放器无法解码该视频(浏览器缺少对应解码器)';
+  };
+  v.addEventListener('loadedmetadata', om);
+  v.addEventListener('error', oe);
+  v.load();
+}
+
+// Upload a dropped file's content to the server's disposable temp dir, then treat it like any
+// other chosen input. The browser cannot provide the file's real local path -- only its content.
+// The original filename is remembered so the auto-filled output uses nr_<original>.mp4 instead
+// of the random temp name. No inline status text: mistakes go to the floating log instead.
+async function handleDroppedFile(file) {
+  if (!/\.(mp4|mov|mkv|avi|webm|m4v)$/i.test(file.name)) {
+    logError('不支持的拖入文件: ' + file.name + ' (支持 mp4/mov/mkv/avi/webm/m4v)');
+    return;
+  }
+  try {
+    const r = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'X-Filename': encodeURIComponent(file.name) },
+      body: file,
+    }).then((x) => x.json());
+    if (r.ok) {
+      applyInputPath(r.path, file.name, r.tmp);
+      autoFillOutput();
+    } else {
+      logError('接收拖入文件失败: ' + (r.error || 'unknown'));
+    }
+  } catch (e) {
+    logError('接收拖入文件失败: ' + e.message);
+  }
+}
+
+// Drag & drop: a file may be released anywhere on the page -- both the video card and the image
+// card are highlighted while a file drag is in progress, and the drop is routed by extension
+// (video -> 视频渲染, image -> 图片渲染).
+let dragDepth = 0;
+function fileDragActive(e) {
+  return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') >= 0;
+}
+function isImageFile(name) {
+  return /\.(png|jpe?g|bmp|webp|tif?f)$/i.test(name || '');
+}
+function isVideoFile(name) {
+  return /\.(mp4|mov|mkv|avi|webm|m4v)$/i.test(name || '');
+}
+document.addEventListener('dragenter', (e) => {
+  if (!fileDragActive(e)) return;
+  dragDepth++;
+  $('fileCard').classList.add('drop-active');
+  $('imgCard').classList.add('drop-active');
+});
+document.addEventListener('dragleave', (e) => {
+  if (!fileDragActive(e)) return;
+  if (--dragDepth <= 0) {
+    dragDepth = 0;
+    $('fileCard').classList.remove('drop-active');
+    $('imgCard').classList.remove('drop-active');
+  }
+});
+document.addEventListener('dragover', (e) => {
+  if (fileDragActive(e)) e.preventDefault();
+});
+document.addEventListener('drop', (e) => {
+  if (!fileDragActive(e)) return;
+  e.preventDefault();
+  dragDepth = 0;
+  $('fileCard').classList.remove('drop-active');
+  $('imgCard').classList.remove('drop-active');
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  if (isImageFile(f.name)) handleDroppedImage(f);
+  else if (isVideoFile(f.name)) handleDroppedFile(f);
+  else logError('不支持的拖入文件: ' + f.name + ' (视频 mp4/mov/mkv/avi/webm/m4v;图片 png/jpg/jpeg/bmp/webp/tif/tiff)');
+});
+
+// Ask the server to show a native file picker; the returned path is the original file path,
+// so the output can default to nr_<original>.mp4 under the outputs dir. No inline status text.
+$('filePickerBtn').addEventListener('click', async () => {
+  try {
+    const r = await fetch('/api/pick-file').then((x) => x.json());
+    if (r.ok) {
+      applyInputPath(r.path, r.name, false);
+      autoFillOutput();
+    } else if (!r.cancelled) {
+      logError('选择视频失败: ' + (r.error || 'unknown'));
+    }
+  } catch (e) {
+    logError('选择视频失败: ' + e.message);
+  }
+});
+
+// Pick an output folder via a native folder dialog, then compose a default "nr_<stem><ext>"
+// filename inside it and fill the output field. The stem prefers the original filename (so a
+// dragged-in copy does not leak its random temp name into the output).
+$('outputPickBtn').addEventListener('click', async () => {
+  const input = $('input').value.trim();
+  try {
+    const r = await fetch('/api/save-file?input=' + encodeURIComponent(input)).then((x) => x.json());
+    if (r.ok) {
+      const nm = lastOrigName || input;
+      const ext = (nm ? nm.match(/\.[^./\\]+$/) : null)?.[0] || '.mp4';
+      const stem = nm ? nm.replace(/^.*[\\/]/, '').replace(/\.[^./\\]+$/, '') : 'output';
+      const sep = r.dir.includes('\\') ? '\\' : '/';
+      const tail = r.dir.endsWith('\\') || r.dir.endsWith('/') ? '' : sep;
+      $('output').value = r.dir + tail + 'nr_' + stem + ext;
+    } else if (!r.cancelled) {
+      logError('选择输出文件夹失败: ' + (r.error || 'unknown'));
+    }
+  } catch (e) {
+    logError('选择输出文件夹失败: ' + e.message);
+  }
+});
+
+// ------------------------------------------------------------ floating log panel
+let logSeen = 0;             // number of log lines we have already appended
+let logPanelFolded = true;   // start folded so the page stays clean
+let logSticky = true;        // auto-scroll to bottom unless the user has scrolled away
+
+const $log = $('logBody');
+const $logCnt = $('logCount');
+const $logPanel = $('logPanel');
+
+function setLogFolded(folded) {
+  logPanelFolded = folded;
+  $logPanel.classList.toggle('folded', folded);
+  $logPanel.classList.toggle('expanded', !folded);
+  $('logToggleBtn').textContent = folded ? '▾' : '▴';
+}
+
+// Surface an inline UI error in the floating log instead of next to the file picker.
+function logError(msg) {
+  appendLogLines(['[UI] ' + msg]);
+  setLogFolded(false);
+}
+
+function appendLogLines(lines) {
+  if (!lines || !lines.length) return;
+  // Build a text node in one shot to avoid layout thrash from per-line DOM appends.
+  const text = (logSeen === 0 && !$log.textContent ? '' : '\n') + lines.join('\n');
+  $log.appendChild(document.createTextNode(text));
+  logSeen += lines.length;
+  $logCnt.textContent = String(logSeen);
+  if (logSticky) $log.scrollTop = $log.scrollHeight;
+}
+
+function clearLogPanel() {
+  $log.textContent = '';
+  logSeen = 0;
+  $logCnt.textContent = '0';
+}
+
+$log.addEventListener('scroll', () => {
+  // Resume auto-scroll only when the user is at (or within 8px of) the bottom.
+  logSticky = ($log.scrollHeight - $log.scrollTop - $log.clientHeight) <= 8;
+});
+
+['logHead', 'logToggleBtn'].forEach((id) => {
+  $(id).addEventListener('click', (e) => {
+    if (id === 'logToggleBtn') e.stopPropagation();
+    setLogFolded(!logPanelFolded);
+  });
+});
+
+$('logClearBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  clearLogPanel();
+});
+
+$('logCopyBtn').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  try {
+    await navigator.clipboard.writeText($log.textContent || '');
+    const old = $('logCopyBtn').textContent;
+    $('logCopyBtn').textContent = '已复制';
+    setTimeout(() => { $('logCopyBtn').textContent = old; }, 1200);
+  } catch (err) {
+    $('logCopyBtn').textContent = '失败';
+    setTimeout(() => { $('logCopyBtn').textContent = '复制'; }, 1200);
+  }
+});
+
+setLogFolded(true);
+
+let timer = null;
+
+function fmtDur(sec) {
+  sec = Math.max(0, Math.round(sec || 0));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function renderStatus(s) {
+  const doneF = s.overallDone || 0, totalF = s.overallTotal || 0;
+  const pct = totalF > 0 ? Math.min(100, (doneF / totalF) * 100) : 0;
+  $('bar').style.width = pct + '%';
+
+  const st = $('statusText');
+  const ps = $('progStats');
+  const fps = s.avgFps || 0;
+  const showStats = (txt) => {
+    ps.textContent = txt || '';
+    ps.style.display = txt ? '' : 'none';
+  };
+
+  if (s.finished) {
+    if (s.code === 0) {
+      st.textContent = '渲染完成';
+      st.className = 'status done';
+      if (s.output) {
+        $('resultCard').style.display = '';
+        const sizeTxt = s.outputSize != null
+          ? ` (${(s.outputSize / 1048576).toFixed(1)} MB)`
+          : '';
+        $('resultInfo').textContent = s.output + sizeTxt;
+      }
+      showStats(totalF > 0
+        ? `共 ${totalF} 帧 · 平均 ${fps.toFixed(1)} 帧/秒 · 用时 ${fmtDur(s.elapsedSec)}`
+        : '');
+    } else {
+      st.textContent = `结束码 ${s.code} · 见日志`;
+      st.className = 'status err';
+      $('resultCard').style.display = 'none';
+      showStats('');
+    }
+  } else if (s.running) {
+    // Whole-video multi-pass: "第 n/m 轮,第 a/b 帧" with an overall (not per-pass) bar.
+    const roundTxt = (s.passes || 1) > 1 ? `第 ${s.pass || 1}/${s.passes} 轮,` : '';
+    st.textContent = totalF > 0
+      ? `${roundTxt}第 ${doneF}/${totalF} 帧`
+      : `${roundTxt}渲染中 ${doneF} 帧`;
+    st.className = 'status';
+    showStats(fps > 0 && s.etaSec > 0
+      ? `平均 ${fps.toFixed(1)} 帧/秒 · 剩余约 ${fmtDur(s.etaSec)}`
+      : '统计中…');
+  } else {
+    // idle: nothing transient to show
+    showStats('');
+  }
+}
+
+async function poll() {
+  try {
+    const s = await fetch('/api/status?since=' + logSeen).then((x) => x.json());
+    appendLogLines(s.lines);
+    renderStatus(s);
+    if (!s.running && s.finished) {
+      clearInterval(timer); timer = null;
+      $('startBtn').disabled = false;
+      $('cancelBtn').disabled = true;
+    }
+  } catch (e) { /* transient */ }
+}
+
+function buildJobCfg() {
+    return {
+        model: $('model').value,
+        intensity: parseFloat($('intensity').value),
+        localTone: parseFloat($('localTone').value),
+        localStructure: parseFloat($('localStructure').value),
+        skinStructure: parseFloat($('skinStructure').value),
+        encoder: $('encoder').value,
+        preset: parseInt($('preset').value, 10),
+        style: parseInt($('style').value, 10),
+        autoMask: $('autoMask').checked ? 1 : 0,
+        uiCorrection: $('uiCorrection').checked ? 1 : 0,
+        residualMult: parseFloat($('residualMult_n').value) || 1.0,
+        frameGuidance: $('flowEnable').checked ? 3 : 0,
+        depthInterval: parseInt($('depthInterval').value, 10) || 0,
+        renderPasses: Math.max(1, parseInt($('renderPasses').value, 10) || 1),
+    };
+}
+
+$('startBtn').addEventListener('click', async () => {
+  const input = $('input').value.trim();
+  if (!input) {
+    alert('请选择或填写输入视频');
+    return;
+  }
+  const body = Object.assign({
+    input,
+    output: $('output').value.trim(),   // 留空则由服务端自动生成不重名文件
+    startTime: parseFloat($('startTime').value) || 0,
+    endTime: parseFloat($('endTime').value) || 0,
+  }, buildJobCfg());
+
+  $('startBtn').disabled = true;
+  $('cancelBtn').disabled = false;
+  $('statusText').textContent = '启动中…';
+  $('resultCard').style.display = 'none';
+
+  const r = await fetch('/api/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then((x) => x.json());
+
+  if (r.ok && r.output) {
+    $('output').value = r.output;
+  }
+
+  if (timer) clearInterval(timer);
+  timer = setInterval(poll, 500);
+  poll();
+});
+
+$('cancelBtn').addEventListener('click', async () => {
+  await fetch('/api/cancel', { method: 'POST' });
+  $('cancelBtn').disabled = true;
+});
+
+// ---------------------------------------------------------------- time range
+// The compare player (in 输出设置) is the picker now: drag the timeline, then click the
+// "选择当前时间为起点 / 终点" buttons to push the value back into the start/end inputs.
+// Direct typing into the inputs still works.
+function syncRangeFields() {
+  const st = parseFloat($('startTime').value) || 0;
+  const et = parseFloat($('endTime').value) || 0;
+  $('rangeInfo').textContent = et > 0 ? `${st.toFixed(1)} → ${et.toFixed(1)} s` : `${st.toFixed(1)} s → 结尾`;
+}
+$('startTime').addEventListener('input', syncRangeFields);
+$('endTime').addEventListener('input', syncRangeFields);
+
+// When a new input file is chosen, reset the range to the whole clip.
+function resetRangeFromInput() {
+  $('startTime').value = '0';
+  $('endTime').value = '0';
+  syncRangeFields();
+}
+
+function playerCurrentTimeSafe() {
+  const v = $('cmpVideo');
+  if (!v || !isFinite(v.currentTime) || v.currentTime < 0) return 0;
+  return v.currentTime;
+}
+
+$('pickStartBtn').addEventListener('click', () => {
+  $('startTime').value = playerCurrentTimeSafe().toFixed(1);
+  syncRangeFields();
+});
+$('pickEndBtn').addEventListener('click', () => {
+  const t = playerCurrentTimeSafe();
+  const st = parseFloat($('startTime').value) || 0;
+  if (t <= st) {
+    alert('终点必须大于起点(当前 ' + t.toFixed(2) + 's ≤ 起点 ' + st.toFixed(2) + 's)');
+    return;
+  }
+  $('endTime').value = t.toFixed(1);
+  syncRangeFields();
+});
+
+// ---------------------------------------------------------------- compare preview
+// The user picks the frame in an inline <video> player (scrub the timeline), then presses the
+// render button; we render exactly that time and show an orig/rendered split-comparison panel.
+
+function playerCurrentTimeOrLoad(input) {
+  return new Promise((resolve, reject) => {
+    const v = $('cmpVideo');
+    if (v.getAttribute('data-src') === '/api/video?path=' + encodeURIComponent(input)) {
+      if (v.readyState >= 1) return resolve(v.currentTime || 0);
+      const om = () => { v.removeEventListener('loadedmetadata', om); resolve(v.currentTime || 0); };
+      v.addEventListener('loadedmetadata', om);
+      return;
+    }
+    loadCmpPlayer(input);
+    const oe = () => { v.removeEventListener('loadedmetadata', om2); v.removeEventListener('error', oe); reject(new Error('播放器无法解码该视频')); };
+    const om2 = () => { v.removeEventListener('loadedmetadata', om2); v.removeEventListener('error', oe); resolve(v.currentTime || 0); };
+    v.addEventListener('loadedmetadata', om2);
+    v.addEventListener('error', oe);
+  });
+}
+
+$('setCmpFrameBtn').addEventListener('click', async () => {
+  const input = $('input').value.trim();
+  if (!input) {
+    alert('请先选择输入视频');
+    return;
+  }
+  const btn = $('setCmpFrameBtn');
+  const status = $('cmpStatus');
+  btn.disabled = true;
+  status.textContent = '加载播放器…';
+  let frameTime;
+  try {
+    frameTime = await playerCurrentTimeOrLoad(input);
+  } catch (e) {
+    status.textContent = e.message;
+    btn.disabled = false;
+    return;
+  }
+  if (!isFinite(frameTime) || frameTime < 0) frameTime = 0;
+  status.textContent = `正在渲染 t=${frameTime.toFixed(2)}s(重新加载模型需几秒)…`;
+  try {
+    const r = await fetch('/api/render-frame', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input, frameTime, cfg: buildJobCfg() }),
+    }).then((x) => x.json());
+    if (!r.ok) {
+      status.textContent = '渲染失败: ' + (r.error || 'unknown');
+      return;
+    }
+    $('cmpOrigImg').src = r.orig;
+    $('cmpRenderImg').src = r.render;
+    $('compareBox').classList.remove('empty');
+    status.textContent = `${r.width}x${r.height} @ t=${r.frameTime.toFixed(2)}s — 移动鼠标对比`;
+    setCmpSplit(0.5);  // reset to centre on every fresh render
+  } catch (e) {
+    status.textContent = '请求失败: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function setCmpSplit(p) {
+  // p in [0,1]. Left of the pointer shows the ORIGINAL frame, right shows the RENDERED frame:
+  // the render layer is clipped to only its right portion [p..1] -> left inset = p.
+  const pct = (p * 100).toFixed(2);
+  $('cmpRenderLayer').style.clipPath = `inset(0 0 0 ${pct}%)`;
+  $('cmpDivider').style.left = pct + '%';
+}
+// Convert a mouse event over the compare box into a split position relative to the .img-stage
+// (the exact rect the picture occupies). Using the box rect instead would shift the divider
+// whenever the picture is smaller than the box (letterbox).
+function splitFromEvent(e, stage, setter) {
+  const st = stage.getBoundingClientRect();
+  if (st.width <= 0) return;
+  const p = Math.min(1, Math.max(0, (e.clientX - st.left) / st.width));
+  setter(p);
+}
+$('compareBox').addEventListener('mousemove', (e) => splitFromEvent(e, $('cmpStage'), setCmpSplit));
+$('compareBox').addEventListener('mouseleave', () => setCmpSplit(0.5));
+setCmpSplit(0.5);   // initial divider centred
+
+// ---------------------------------------------------------------- image render
+let imgPickPath = null;      // chosen still image on disk
+let imgRenderedAbs = null;   // server path of the last rendered PNG (for 保存)
+
+// Generic split-line driver: layer's clip-path reveals the rendered side from the left, the
+// divider slides to match. Both the inline image compare (#imgBox) and the full-screen modal
+// (#imgModalBox) reuse the same code so they stay perfectly in sync.
+function setBoxSplit(layerEl, dividerEl, p) {
+  const pct = (p * 100).toFixed(2);
+  layerEl.style.clipPath = `inset(0 0 0 ${pct}%)`;
+  dividerEl.style.left = pct + '%';
+}
+function setImgSplit(p) { setBoxSplit($('imgRenderLayer'), $('imgDivider'), p); }
+function setModalImgSplit(p) { setBoxSplit($('imgModalRenderLayer'), $('imgModalDivider'), p); }
+$('imgBox').addEventListener('mousemove', (e) => splitFromEvent(e, $('imgStage'), setImgSplit));
+$('imgBox').addEventListener('mouseleave', () => setImgSplit(0.5));
+setImgSplit(0.5);
+
+// Full-screen compare modal: same drag-to-split UX as the inline box, just near fullscreen so
+// pixel-level differences are easy to spot. Pulled out so the inline card can stay compact.
+let imgModalOpen = false;
+function openImgModal() {
+  if (!$('imgRenderImg').getAttribute('src')) return;   // no rendered result yet
+  $('imgModalOrig').src = $('imgOrigImg').src;
+  $('imgModalRender').src = $('imgRenderImg').src;
+  setModalImgSplit(0.5);
+  $('imgModal').classList.add('show');
+  $('imgModal').setAttribute('aria-hidden', 'false');
+  imgModalOpen = true;
+}
+function closeImgModal() {
+  $('imgModal').classList.remove('show');
+  $('imgModal').setAttribute('aria-hidden', 'true');
+  imgModalOpen = false;
+}
+$('imgModalBox').addEventListener('mousemove', (e) => splitFromEvent(e, $('imgModalStage'), setModalImgSplit));
+$('imgModalBox').addEventListener('mouseleave', () => setModalImgSplit(0.5));
+$('imgModalClose').addEventListener('click', closeImgModal);
+$('imgModal').addEventListener('click', (e) => {
+  // Click outside the compare box (on the dark backdrop) closes the modal.
+  if (e.target === $('imgModal')) closeImgModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (imgModalOpen && e.key === 'Escape') closeImgModal();
+});
+$('imgZoomBtn').addEventListener('click', openImgModal);
+setModalImgSplit(0.5);
+
+// Loads an image source (disk file via the picker, or a drag-in / clipboard-paste copy stored in
+// the uploads dir) into the image module: shows the plain preview and arms the render button.
+// Any previous rendered comparison is discarded -- a new source invalidates the old "after" image.
+function applyImgInput(path, name) {
+  imgPickPath = path;
+  imgRenderedAbs = null;
+  $('imgSaveBtn').disabled = true;
+  $('imgZoomBtn').disabled = true;
+  $('imgRenderBtn').disabled = false;
+  // Reset: hide the split-compare, show a plain preview of the source image.
+  $('imgBox').style.display = 'none';
+  $('imgBox').classList.add('empty');
+  $('imgOrigImg').src = '';
+  $('imgRenderImg').src = '';
+  $('imgDropZone').style.display = 'none';
+  $('imgPreview').src = '/api/image?path=' + encodeURIComponent(path);
+  $('imgPreview').style.display = '';
+  $('imgStatus').textContent = `已选: ${name} — 点「渲染此图」`;
+}
+
+async function pickImgFile() {
+  try {
+    const r = await fetch('/api/pick-image').then((x) => x.json());
+    if (r.ok) {
+      applyImgInput(r.path, r.name);
+    } else if (!r.cancelled) {
+      $('imgStatus').textContent = '选择失败: ' + (r.error || 'unknown');
+    }
+  } catch (e) {
+    $('imgStatus').textContent = '选择失败: ' + e.message;
+  }
+}
+$('imgPickBtn').addEventListener('click', pickImgFile);
+$('imgDropZone').addEventListener('click', pickImgFile);
+
+// Drag-in / paste an image file. The browser only hands over the file's CONTENT (never its real
+// disk path), so it is uploaded to the disposable uploads dir under its original filename, then
+// loaded exactly like a picked image. Errors go to the floating log and never touch the current
+// selection.
+async function handleDroppedImage(file) {
+  if (!isImageFile(file.name)) {
+    logError('不支持的图片文件: ' + (file.name || '未知') + ' (支持 png/jpg/jpeg/bmp/webp/tif/tiff)');
+    return;
+  }
+  try {
+    const r = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'X-Filename': encodeURIComponent(file.name) },
+      body: file,
+    }).then((x) => x.json());
+    if (r.ok) {
+      applyImgInput(r.path, file.name);
+    } else {
+      logError('接收图片失败: ' + (r.error || 'unknown'));
+    }
+  } catch (e) {
+    logError('接收图片失败: ' + e.message);
+  }
+}
+
+// Pulls an image out of a clipboard paste event: a screenshot (capture tool / Win+Shift+S), a
+// picture copied from a web page, or an image file copied in Explorer. Returns a File or null.
+function clipboardImage(dt) {
+  if (!dt) return null;
+  const pick = (f) => {
+    if (!f) return null;
+    const t = (f.type || '').toLowerCase();
+    return (t.startsWith('image/') || isImageFile(f.name)) ? f : null;
+  };
+  if (dt.items) {
+    for (const it of Array.from(dt.items)) {
+      if (it.kind !== 'file') continue;
+      try {
+        const f = pick(it.getAsFile());
+        if (f) return f;
+      } catch (e) { /* ignore */ }
+    }
+  }
+  for (const f of Array.from(dt.files || [])) {
+    const g = pick(f);
+    if (g) return g;
+  }
+  return null;
+}
+
+// Ctrl+V feeds an image from the clipboard into the image module. Text pastes are left alone:
+// when the focus is in a text/number field AND the clipboard also carries text/html, the field
+// wins so normal copy-paste of values keeps working.
+document.addEventListener('paste', (e) => {
+  const dt = e.clipboardData;
+  if (!dt) return;
+  const t = e.target;
+  const editable = !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable));
+  const hasText = Array.from(dt.types || []).some((x) => x === 'text/plain' || x === 'text/html');
+  if (editable && hasText) return;
+  let img = clipboardImage(dt);
+  if (!img) return;
+  e.preventDefault();
+  // Browsers usually name a screenshot "image.png"; give nameless pasted content a filename so
+  // the upload + preview paths stay consistent.
+  if (!isImageFile(img.name)) {
+    const ext = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp',
+                  'image/bmp': '.bmp', 'image/tiff': '.tif' }[img.type] || '.png';
+    img = new File([img], 'pasted_' + Date.now().toString(36) + ext, { type: img.type });
+  }
+  handleDroppedImage(img);
+});
+
+$('imgRenderBtn').addEventListener('click', async () => {
+  if (!imgPickPath) return;
+  const btn = $('imgRenderBtn');
+  btn.disabled = true;
+  $('imgStatus').textContent = '正在渲染(引擎冷启动需数秒)…';
+  try {
+    const r = await fetch('/api/render-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: imgPickPath, cfg: buildJobCfg() }),
+    }).then((x) => x.json());
+    if (!r.ok) {
+      $('imgStatus').textContent = '渲染失败: ' + (r.error || 'unknown');
+      return;
+    }
+    $('imgPreview').style.display = 'none';
+    $('imgBox').style.display = '';
+    $('imgOrigImg').src = r.orig;
+    $('imgRenderImg').src = r.render;
+    $('imgBox').classList.remove('empty');
+    imgRenderedAbs = r.renderedAbs || null;
+    $('imgSaveBtn').disabled = !imgRenderedAbs;
+    $('imgZoomBtn').disabled = !imgRenderedAbs;
+    $('imgStatus').textContent = `${r.width}x${r.height} — 渲染完成,移动鼠标对比`;
+    setImgSplit(0.5);
+  } catch (e) {
+    $('imgStatus').textContent = '请求失败: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$('imgSaveBtn').addEventListener('click', async () => {
+  if (!imgRenderedAbs) return;
+  $('imgStatus').textContent = '等待选择保存位置…';
+  try {
+    const r = await fetch('/api/save-image?src=' + encodeURIComponent(imgRenderedAbs)).then((x) => x.json());
+    if (r.ok) {
+      $('imgStatus').textContent = '已保存: ' + r.path;
+    } else if (!r.cancelled) {
+      $('imgStatus').textContent = '保存失败: ' + (r.error || 'unknown');
+    }
+  } catch (e) {
+    $('imgStatus').textContent = '保存失败: ' + e.message;
+  }
+});
+
+// ---------------------------------------------------------------- persist params
+// Model / render parameters are remembered across page reloads (localStorage), so reopening the
+// page keeps the previous tuning instead of resetting to defaults. Only "parameter" controls are
+// persisted: file paths and the trim start/end belong to one specific job and are left out (a new
+// input resets the range anyway).
+const LS_PARAMS_KEY = 'dlss5nr.params.v1';
+const PARAM_IDS = [
+  'model', 'preset', 'style',
+  'intensity', 'localTone', 'localStructure', 'skinStructure',
+  'autoMask', 'uiCorrection', 'residualMult',
+  'flowEnable', 'depthInterval',
+  'encoder', 'renderPasses',
+];
+
+function persistParams() {
+  try {
+    const o = { v: 1 };
+    for (const id of PARAM_IDS) {
+      const el = $(id);
+      if (!el) continue;
+      o[id] = (el.type === 'checkbox') ? el.checked : el.value;
+    }
+    localStorage.setItem(LS_PARAMS_KEY, JSON.stringify(o));
+  } catch (e) { /* storage disabled / full: ignore */ }
+}
+
+function applyParamTo(id, val) {
+  const el = $(id);
+  if (!el) return;
+  if (el.type === 'checkbox') {
+    el.checked = !!val;
+    return;
+  }
+  const asStr = String(val);
+  if (el.tagName === 'SELECT' && ![].some.call(el.options, (op) => op.value === asStr)) return;
+  el.value = asStr;
+  const twin = $(id + '_n'); // slider + number pair: keep the number box in sync too
+  if (twin && twin.type === 'number' && el.type === 'range') twin.value = asStr;
+}
+
+function restoreParams() {
+  let o = null;
+  try { o = JSON.parse(localStorage.getItem(LS_PARAMS_KEY) || 'null'); } catch (e) {}
+  if (!o || o.v !== 1) return;
+  for (const id of PARAM_IDS) if (id in o) applyParamTo(id, o[id]);
+}
+
+PARAM_IDS.forEach((id) => {
+  const el = $(id);
+  if (!el) return;
+  const save = () => persistParams();
+  el.addEventListener('input', save);
+  el.addEventListener('change', save);
+});
+restoreParams();
+
+// ---------------------------------------------------------------- named presets
+// User-saved snapshots of the 参数设置 card ONLY (encoder belongs to 输出设置 and is not part
+// of a preset). They live in localStorage under their own key, separate from the automatic
+// "remember last tuning" (restoreParams/persistParams) above, so the two mechanisms coexist:
+// opening the page still restores the last-used tuning, and presets add named save/load/delete.
+const LS_PRESETS_KEY = 'dlss5nr.presets.v1';
+const PRESET_IDS = PARAM_IDS.filter((id) => id !== 'encoder');
+let presetCurrent = '';   // currently selected preset name (driven by the custom dropdown)
+
+function presetCollect() {
+  const o = {};
+  for (const id of PRESET_IDS) {
+    const el = $(id);
+    if (!el) continue;
+    o[id] = (el.type === 'checkbox') ? el.checked : el.value;
+  }
+  return o;
+}
+
+function presetLoadAll() {
+  try { return JSON.parse(localStorage.getItem(LS_PRESETS_KEY) || '[]') || []; }
+  catch (e) { return []; }
+}
+
+function presetStoreAll(list) {
+  try { localStorage.setItem(LS_PRESETS_KEY, JSON.stringify(list)); }
+  catch (e) { logError('无法保存预设: ' + e.message); }
+}
+
+function refreshPresetList() {
+  const list = presetLoadAll();
+  const label = $('presetListLabel');
+  if (!list.length) {
+    presetCurrent = '';
+    label.textContent = '（暂无预设）';
+  } else if (presetCurrent && list.some((x) => x.n === presetCurrent)) {
+    label.textContent = presetCurrent;
+  } else {
+    presetCurrent = '';
+    label.textContent = '选择预设…';
+  }
+  presetRenderMenu(list);
+  $('presetLoadBtn').disabled = !presetCurrent;
+  $('presetDelBtn').disabled = !presetCurrent;
+}
+
+function presetRenderMenu(items) {
+  const menu = $('presetListMenu');
+  menu.innerHTML = '';
+  if (!items.length) {
+    const li = document.createElement('li');
+    li.className = 'item empty';
+    li.textContent = '（暂无预设）';
+    menu.appendChild(li);
+    return;
+  }
+  for (const it of items) {
+    const li = document.createElement('li');
+    li.className = 'item';
+    li.dataset.name = it.n;
+    li.textContent = it.n;
+    if (it.n === presetCurrent) li.classList.add('active');
+    li.addEventListener('click', () => {
+      presetCurrent = it.n;
+      $('presetListMenu').classList.remove('open');
+      refreshPresetList();
+    });
+    menu.appendChild(li);
+  }
+}
+
+$('presetSaveBtn').addEventListener('click', () => {
+  const typed = $('presetName').value.trim();
+  const name = typed || presetCurrent;   // empty box + selected preset = update that one
+  if (!name) { logError('保存预设需要先输入名称，或先在列表中选择要覆盖的预设'); return; }
+  const list = presetLoadAll();
+  const params = presetCollect();
+  const i = list.findIndex((x) => x.n === name);
+  if (i >= 0) list[i].p = params; else list.push({ n: name, p: params });
+  presetStoreAll(list);
+  $('presetName').value = '';
+  presetCurrent = name;
+  refreshPresetList();
+});
+
+$('presetLoadBtn').addEventListener('click', () => {
+  const it = presetLoadAll().find((x) => x.n === presetCurrent);
+  if (!it) return;
+  for (const id of PRESET_IDS) if (id in it.p) applyParamTo(id, it.p[id]);
+  persistParams();
+});
+
+$('presetDelBtn').addEventListener('click', () => {
+  const name = presetCurrent;
+  if (!name) return;
+  presetStoreAll(presetLoadAll().filter((x) => x.n !== name));
+  $('presetName').value = name;   // handy if the user wants to re-create it under the same name
+  presetCurrent = '';
+  refreshPresetList();
+});
+
+$('presetListBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('presetListMenu').classList.toggle('open');
+});
+// Click anywhere outside the preset picker collapses the open menu.
+document.addEventListener('click', (e) => {
+  if (!$('presetListWrap').contains(e.target)) $('presetListMenu').classList.remove('open');
+});
+refreshPresetList();
+
+poll();
+</script>
+</body>
+</html>
