@@ -158,8 +158,14 @@ core/dlss5nr_engine.exe --input in.mp4 --output out.mp4 \
 
 ## 许可与致谢
 
-本项目源码以 **GPL-3.0** 发布（见 `LICENSE`）。DLSSNR 接入思路参考了同为 GPL-3.0 的
-[Magpie](https://github.com/SAOG0721/Magpie) 实验分支与 OptiScaler 社区的 DLSSNR 实现；
+本项目源码以 **GPL-3.0** 发布（见 `LICENSE`）。DLSSNR 的接入方式与参数方案参考了以下
+开源项目，特此致谢：
+
+- **Magpie** 的 DLSSNR 实验支持：开源 fork **SAOG0721/Magpie** 的 **`experimental` 分支**
+  （https://github.com/SAOG0721/Magpie ，GPL-3.0；上游为 Blinue/Magpie）；
+- **OptiScaler** 社区的 DLSSNR 支持实现（本工具早期调试所用的转发器 `nvngx.dll_dlssnr*.dll`
+  源于其社区构建）。
+
 界面、引擎与视频处理流程为本项目独立编写。
 
 - `core/nvof/` 头文件：Copyright (c) 2018-2023 NVIDIA Corporation，宽松许可（见文件头）。
