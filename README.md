@@ -1,4 +1,4 @@
-# DLSS5NR — DLSS 5 Neural Rendering 离线视频/图片处理器
+DLSS5 Video & Image Renderer
 
 用 NVIDIA DLSS 5 Neural Renderer（DLSS NR）神经网络对**视频与图片做逐帧画质增强**的本地工具。
 纯本地运算，不上传任何数据；浏览器操作界面，无需安装。
@@ -12,6 +12,7 @@
 > 下载解压即可用，无需安装/改名。详见下文「快速开始」。
 
 ---
+<img width="1550" height="1251" alt="图片" src="https://github.com/user-attachments/assets/ca56661e-b6a4-4841-9d1b-c0facf0f7d42" />
 
 ## 快速开始
 
